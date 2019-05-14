@@ -1,0 +1,5 @@
+# Example .ampy file
+# Please fill in your own port, baud rate, and delay
+AMPY_BAUD=115200
+# Fix for macOS users' "Could not enter raw repl"
+AMPY_DELAY=1
