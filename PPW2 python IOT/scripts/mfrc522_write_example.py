@@ -2,7 +2,7 @@
 # Description: Example code for using the MFRC522 RFID module to write a single block to
 #              a Mifare Classic 1K card/tag
 # Author: Arben Durmishllari, University of Sunderland
-# Date: Jan 2019
+# Date: May 2019
 
 # Imports
 from libs.iot_app import IoTApp
@@ -34,7 +34,7 @@ class MainApp(IoTApp):
         
         
         self.address = 8
-        self.data_str = "CK100231        "            #ben
+        self.data_str = "KM450230JW100239"          #ben
         # self.data_str = "EG200234        "          #edi
         # self.data_str = "KM450230        "          #chris
         # self.data_str = "JW100239        "          #yakiza

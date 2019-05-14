@@ -2,11 +2,13 @@
 # Description: Example code for using the MFRC522 RFID module to read a single block 
 #              from a Mifare Classic 1K card/tag
 # Author: Arben Durmishllari, University of Sunderland
-# Date: Jan 2019
+# Date: May 2019
 
 # Imports
 from libs.iot_app import IoTApp
 from libs.mfrc522 import MFRC522
+from machine import RTC, Pin
+from neopixel import NeoPixel
 from time import sleep
 
 # Classes
@@ -25,40 +27,133 @@ class MainApp(IoTApp):
     Looping of your program can be controlled using the finished flag property of
     your custom class.
     """
+
+
+    read_code = ''
+    employee_details = {"CK100231" : "Ben",
+                        "EG200234" : "Eduard",
+                        "KM450230" : "Chris",
+                        "JW100239" : "Yakiza"}
+    
+
+    neopixel_pin = Pin(21)
+    neopixel_pin.init(mode=Pin.OUT, pull=Pin.PULL_DOWN)
+    npm = NeoPixel(neopixel_pin, 32, bpp=3, timing=1)
+    
+    tap_card = False
+    on_room = False
+    button_pressed = False
+    
+    
+    
     def init(self):
         """
         The init() method is designed to contain the part of the program that initialises
         app specific properties (such as sensor devices, instance variables etc.)
         """
         self.rfid_device = MFRC522(sck=5, mosi=18, miso=19, rst=17, cs=16)
+
         
         self.address = 8
         self.read = False
         self.data = None
-   
+        
+    
+
+        
     def loop(self):
         """
         The loop() method is called after the init() method and is designed to contain
         the part of the program which continues to execute until the finished property
         is set to True
         """
+
+
+        
         if not self.read:
-            self.oled_clear()
-
-            self.oled_text("Present RFID Tag", 0, 0)
             
-            (self.read, msg, tag_type, raw_uid, self.data) = self.read_from_tag(self.address)
+            if not self.tap_card:
+                
+                self.npm.fill((0, 5, 0))
+                self.npm.write()
+                self.oled_clear()
 
-            self.oled_text(msg, 0, 10)
-            self.oled_display()
+                self.oled_text("Present RFID Tag", 0, 0)
+                
+                (self.read, msg, tag_type, raw_uid, self.data) = self.read_from_tag(self.address)
+
+                self.npm.fill((5, 0, 0))
+                self.npm.write()
+
+                self.oled_text(msg, 0, 10)
+                self.oled_display()
+            
+            else:
+                (self.read, msg, tag_type, raw_uid, self.data) = self.read_from_tag(self.address)
+                self.oled_clear()
+                self.oled_text("Back", 0, 0)
+                self.oled_display()
+        
         else:
-            self.oled_text(str(bytes(self.data), "utf-8"), 0, 20)
-            self.oled_display()
-            self.address = 9
-            self.read = False
-            sleep(5)
-            # self.finish()
+            
+            if  not self.tap_card:
+                
+                    self.oled_clear()
+                    self.read_code = str(bytes(self.data), "utf-8")
+                    self.oled_text("Button A or B", 0, 0)
+                    self.oled_text("A: " + str(self.employee_details[self.read_code[0:8]]), 0, 10)
+                    self.oled_text("B: " + str(self.employee_details[self.read_code[8:16]]), 0, 20)
+                    self.oled_display()
+                    
+                    self.oled_clear()
+                    self.read = False
+                    self.tap_card = True
+                    sleep(2)
+                    
+            
+            else:
+                
+                if (str(self.employee_details[self.read_code[0:8]])) == True or (str(self.employee_details[self.read_code[8:16]]) == True:
+                    self.tap_card = False
+                    self.read = False
+                    self.button_pressed = False
+                    self.oled_clear()
+                    self.oled_text("out", 0, 0)
+                    self.oled_display()
+            
+                else:
+                    self.oled_clear()
+                    self.oled_text("busy", 0, 0)
+                    self.oled_display()
+
+
+
+                        
+
+           
     
+   
+
+    def btnA_handler(self, pin):
+        self.button_pressed = True
+        users = str(bytes(self.employee_details[0:8]), "utf-8")
+        if users in self.employee_details:
+            self.oled_clear()
+            self.oled_text("ole", 0, 0)
+            self.oled_display()
+            self.read = False
+            self.tap_card = True
+            
+            
+    def btnB_handler(self, pin):
+        self.button_pressed = True
+        tap_card = True
+        users1 = str(bytes(self.data[8:16]), "utf-8")
+        if user1 in self.employee_details:
+            self.oled_clear()
+            self.oled_text("ole", 0, 0)
+            self.oled_display()
+
     def deinit(self):
         """
         The deinit() method is called after the loop() method has finished, is designed
