@@ -34,10 +34,8 @@ class MainApp(IoTApp):
         
         
         self.address = 8
-        self.data_str = "KM450230JW100239"          #ben
-        # self.data_str = "EG200234        "          #edi
-        # self.data_str = "KM450230        "          #chris
-        # self.data_str = "JW100239        "          #yakiza
+        #self.data_str = "CK100231EG200234"       #card   
+        self.data_str = "KM450230JW100239"     #fob
         self.data = bytes(self.data_str, "utf-8")
         self.wrote = False
    

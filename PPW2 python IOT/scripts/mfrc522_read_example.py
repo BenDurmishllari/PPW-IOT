@@ -27,7 +27,14 @@ class MainApp(IoTApp):
     Looping of your program can be controlled using the finished flag property of
     your custom class.
     """
-
+    AP_SSID = "DCETLocalVOIP"
+    AP_PSWD = ""
+    AP_TOUT = 5000
+    MQTT_ADDR = "192.168.2.138"  # Your desktop PC Wi-Fi dongle IP address
+    MQTT_PORT = 1883
+    # Literal string values can be converted to binary representation by using a b prefix
+    MQTT_TEST_TOPIC_1 = b"cet235/test/ticks"  # Topic name to indicate a tick has occurred
+    MQTT_TEST_TOPIC_2 = b"cet235/test/secs" # Topic name to indicate data is seconds
 
     read_code = ''
     employee_details = {"CK100231" : "Ben",
@@ -41,8 +48,11 @@ class MainApp(IoTApp):
     npm = NeoPixel(neopixel_pin, 32, bpp=3, timing=1)
     
     tap_card = False
+    busy = False
     on_room = False
     button_pressed = False
+    user_in = ""
+    employee = "None"
     
     
     
@@ -58,7 +68,28 @@ class MainApp(IoTApp):
         self.read = False
         self.data = None
         
-    
+        self.wifi_msg = "No WIFI"
+        connect_count = 0
+        # Try to connect to WiFi 5 times, if unsuccessful then only try again if button A on
+        # the OLED is pressed
+        while connect_count < 5 and not self.is_wifi_connected():
+            self.oled_clear()
+            self.wifi_msg = "Connect WIFI:{0}".format(connect_count + 1) 
+            self.oled_text(self.wifi_msg, 0, 0)
+            self.oled_display()
+            self.connect_to_wifi(wifi_settings=(self.AP_SSID, self.AP_PSWD, True, self.AP_TOUT))
+            connect_count += 1
+            
+        if self.is_wifi_connected():
+            self.wifi_msg = "WIFI"
+            # Register to the MQTT broker 
+            self.register_to_mqtt(server=self.MQTT_ADDR, port=self.MQTT_PORT)
+        else:
+            self.oled_clear()
+            self.wifi_msg = "No WIFI"
+            self.oled_text(self.wifi_msg, 0, 0)
+            self.oled_display()
+            sleep(2)
 
         
     def loop(self):
@@ -81,78 +112,91 @@ class MainApp(IoTApp):
                 self.oled_text("Present RFID Tag", 0, 0)
                 
                 (self.read, msg, tag_type, raw_uid, self.data) = self.read_from_tag(self.address)
-
-                self.npm.fill((5, 0, 0))
-                self.npm.write()
-
+                
+                
                 self.oled_text(msg, 0, 10)
                 self.oled_display()
+                self.employee = "None"
             
             else:
                 (self.read, msg, tag_type, raw_uid, self.data) = self.read_from_tag(self.address)
-                self.oled_clear()
-                self.oled_text("Back", 0, 0)
-                self.oled_display()
+                
         
         else:
-            
-            if  not self.tap_card:
+            self.read_code = str(bytes(self.data), "utf-8")
+            if  not self.busy:
                 
                     self.oled_clear()
-                    self.read_code = str(bytes(self.data), "utf-8")
+                    
                     self.oled_text("Button A or B", 0, 0)
-                    self.oled_text("A: " + str(self.employee_details[self.read_code[0:8]]), 0, 10)
-                    self.oled_text("B: " + str(self.employee_details[self.read_code[8:16]]), 0, 20)
+                    self.oled_text("A: " + str(self.read_code[0:8]), 0, 10)
+                    self.oled_text("B: " + str(self.read_code[8:16]), 0, 20)
+                    self.user_in = str(self.read_code)
                     self.oled_display()
                     
                     self.oled_clear()
                     self.read = False
                     self.tap_card = True
-                    sleep(2)
                     
-            
             else:
                 
-                if (str(self.employee_details[self.read_code[0:8]])) == True or (str(self.employee_details[self.read_code[8:16]]) == True:
+                if self.user_in ==  self.read_code:
                     self.tap_card = False
                     self.read = False
                     self.button_pressed = False
                     self.oled_clear()
-                    self.oled_text("out", 0, 0)
+                    self.oled_text("Employee Left: ", 0, 0)
+                    self.oled_text(self.employee, 0, 10)
                     self.oled_display()
+                    self.busy = False
+
             
-                else:
+                elif self.user_in != self.read_code:
                     self.oled_clear()
-                    self.oled_text("busy", 0, 0)
+                    self.oled_text("Busy Room: ", 0, 0)
+                    self.oled_text("Employee inside: ", 0, 10)
+                    self.oled_text(self.employee, 0, 20)
                     self.oled_display()
+                    self.read = False
+                    self.tap_card = True
 
+        if self.is_wifi_connected():
+            # Publish a "cet235/test/ticks" topic message (which is blank as it is not
+            # needed by the subscribers)
+            # self.mqtt_client.publish(self.MQTT_TEST_TOPIC_2, b"{0}".format(self.employee))
 
+            # Publish a "cet235/test/secs" topic message (which is set as the seconds element
+            # of the current date and time)
+            self.mqtt_client.publish(self.MQTT_TEST_TOPIC_2, b"{0}".format(self.employee)) # <---- main command that send the message to subscriber(light)
 
-                        
-
-           
-    
+        sleep(1)
    
 
     def btnA_handler(self, pin):
+        self.npm.fill((5, 0, 0))
+        self.npm.write()
         self.button_pressed = True
-        users = str(bytes(self.employee_details[0:8]), "utf-8")
-        if users in self.employee_details:
-            self.oled_clear()
-            self.oled_text("ole", 0, 0)
-            self.oled_display()
-            self.read = False
-            self.tap_card = True
+        self.employee = self.read_code[0:8]
+        self.oled_clear()
+        self.oled_text("I'm in: ", 0, 0)
+        self.oled_text(self.employee, 0, 10)
+        self.oled_display()
+        self.read = False
+        self.busy = True
             
             
     def btnB_handler(self, pin):
+        self.npm.fill((5, 0, 0))
+        self.npm.write()
         self.button_pressed = True
-        tap_card = True
-        users1 = str(bytes(self.data[8:16]), "utf-8")
-        if user1 in self.employee_details:
-            self.oled_clear()
-            self.oled_text("ole", 0, 0)
-            self.oled_display()
+        self.employee = self.read_code[8:16]
+        self.oled_clear()
+        self.oled_text("I'm in: ", 0, 0)
+        self.oled_text(self.employee, 0, 10)
+        self.oled_display()
+        self.read = False
+        self.busy = True
+       
 
     def deinit(self):
         """
