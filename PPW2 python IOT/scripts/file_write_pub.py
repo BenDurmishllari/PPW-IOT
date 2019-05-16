@@ -1,7 +1,7 @@
-# File: ppw1_iot_sample.py
+# File: file_write_pub.py
 # Description: Sample code for PPW1 script to run on the IoT Prototype Rig
-# Author: Chris Knowles, University of Sunderland
-# Date: Jan 2019
+# Author: Arben Durmishllari, University of Sunderland
+# Date: May 2019
 
 # Imports
 import random
