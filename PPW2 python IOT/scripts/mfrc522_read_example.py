@@ -30,13 +30,15 @@ class MainApp(IoTApp):
     AP_SSID = "DCETLocalVOIP"
     AP_PSWD = ""
     AP_TOUT = 5000
-    MQTT_ADDR = "192.168.2.138"  # Your desktop PC Wi-Fi dongle IP address
+    MQTT_ADDR = "192.168.2.193"  # Your desktop PC Wi-Fi dongle IP address
     MQTT_PORT = 1883
     # Literal string values can be converted to binary representation by using a b prefix
     MQTT_TEST_TOPIC_1 = b"cet235/test/ticks"  # Topic name to indicate a tick has occurred
     MQTT_TEST_TOPIC_2 = b"cet235/test/secs" # Topic name to indicate data is seconds
 
     read_code = ''
+    # saving in dictionary the users code
+    # to validate if they are allowed to get into the room
     employee_details = {"CK100231" : "Ben",
                         "EG200234" : "Eduard",
                         "KM450230" : "Chris",
@@ -123,6 +125,8 @@ class MainApp(IoTApp):
                 
         
         else:
+            # reading the card/fob and its checking and
+            # its giving the access to choose who you are
             self.read_code = str(bytes(self.data), "utf-8")
             if  not self.busy:
                 
@@ -139,7 +143,8 @@ class MainApp(IoTApp):
                     self.tap_card = True
                     
             else:
-                
+                # checking when they tap the card again
+                # if its the user that its inside its checking out
                 if self.user_in ==  self.read_code:
                     self.tap_card = False
                     self.read = False
@@ -150,7 +155,8 @@ class MainApp(IoTApp):
                     self.oled_display()
                     self.busy = False
 
-            
+                # otherwise it doesnt allowe other user to get in 
+                # because its already someone inside
                 elif self.user_in != self.read_code:
                     self.oled_clear()
                     self.oled_text("Busy Room: ", 0, 0)
@@ -163,11 +169,11 @@ class MainApp(IoTApp):
         if self.is_wifi_connected():
             # Publish a "cet235/test/ticks" topic message (which is blank as it is not
             # needed by the subscribers)
-            # self.mqtt_client.publish(self.MQTT_TEST_TOPIC_2, b"{0}".format(self.employee))
+            
 
             # Publish a "cet235/test/secs" topic message (which is set as the seconds element
             # of the current date and time)
-            self.mqtt_client.publish(self.MQTT_TEST_TOPIC_2, b"{0}".format(self.employee)) # <---- main command that send the message to subscriber(light)
+            self.mqtt_client.publish(self.MQTT_TEST_TOPIC_2, b"{0}".format(self.employee)) # <---- main command that send the message to subscriber
 
         sleep(1)
    

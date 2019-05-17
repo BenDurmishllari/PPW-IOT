@@ -1,5 +1,5 @@
 # File: DekstopApp.py
-# Description: Sample code for PPW1 script to run on the Desktop
+# Description: Desktop App PPW2
 # Author: Arben Durmishllari, University of Sunderland
 # Date: May 2019
 

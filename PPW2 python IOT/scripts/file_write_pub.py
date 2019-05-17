@@ -32,8 +32,9 @@ class MainApp(IoTApp):
     AP_SSID = "DCETLocalVOIP"
     AP_PSWD = ""
     AP_TOUT = 5000
-    MQTT_ADDR = "192.168.2.138"  # Your desktop PC Wi-Fi dongle IP address
+    MQTT_ADDR = "192.168.."  # Your desktop PC Wi-Fi dongle IP address
     MQTT_PORT = 1883
+    NTP_PORT = 123  # NTP server port number (by default this is port 123)
     # Literal string values can be converted to binary representation by using a b prefix
     MQTT_TEST_TOPIC_1 = b"cet235/test/ticks"
     MQTT_TEST_TOPIC_2 = b"cet235/test/secs"
@@ -64,8 +65,10 @@ class MainApp(IoTApp):
 
         if self.is_wifi_connected():
             self.wifi_msg = "WIFI"
+            self.ntp_msg = "NTP - RTC good"
             # Register with the MQTT broker and link the method mqtt_callback() as the callback
             # when messages are recieved
+            self.set_rtc_by_ntp(ntp_ip=self.MQTT_ADDR, ntp_port=self.NTP_PORT)
             self.register_to_mqtt(server=self.MQTT_ADDR, port=self.MQTT_PORT,
                                   sub_callback=self.mqtt_callback)
             # Subscribe to topic "cet235/test/ticks"
@@ -93,7 +96,7 @@ class MainApp(IoTApp):
         self.npm = NeoPixel(self.neopixel_pin, 32, bpp=3, timing=1)
 
         
-        self.rtc.datetime((2019, 3, 5, 1, 9, 0, 0, 0))
+        # self.rtc.datetime((2019, 3, 5, 1, 9, 0, 0, 0))
         
         # Instantiate a BME680 object and configure it using the obtain_sensor_bme680()
         # method
@@ -113,7 +116,7 @@ class MainApp(IoTApp):
         self.access = False
         self.access_str = ""
         
-        # counts variables 
+        self.off = False
         self.count = 0
         self.lightcount=0
 
@@ -130,7 +133,16 @@ class MainApp(IoTApp):
         is set to True
         """
         
-      
+        yr, mn, dy, dn, hr, mi, se, ms = self.rtc.datetime()
+        self.oled_clear()
+        output = "{0} {1:02d}-{2:02d}-{3}".format(self._DAY_NAMES[dn][0:3], dy, mn, yr)
+        self.oled_text(output, 0, 12)
+        output = "{0:02d}:{1:02d}:{2:02d}".format(hr, mi, se)
+        self.oled_text(output, 0, 22)
+
+        self.oled_display()
+        
+        sleep(0.1)
         if self.is_wifi_connected():
             # Check for any messages received from the MQTT broker, note this is a non-blocking
             # operation so if no messages are currently present the loop() method continues
@@ -142,7 +154,13 @@ class MainApp(IoTApp):
         if self.sensor_bme680.get_sensor_data():
             tm_reading = self.sensor_bme680.data.temperature  # In degrees Celsius 
             rh_reading = self.sensor_bme680.data.humidity     # As a percentage (ie. relative humidity)
-                
+           
+            self.oled_text("{0}c".format(tm_reading),0,0)
+            self.oled_text("{0}%".format(rh_reading),60,0)
+            self.oled_display()
+            
+            sleep(0.5)
+
             # Current date and time taken from the real-time clock
             now = self.rtc.datetime()
             year = now[0]
@@ -153,14 +171,17 @@ class MainApp(IoTApp):
             second = now[6]
 
             
+            
             if self.access:
                 
                 if self.count == 0:
                     date_str = "{0}/{1}/{2}".format(day, month, year)
                     time_str = "{0}:{1}:{2}".format(hour, minute, second)
-
+                    
                     # Write to file
-                    self.file.write("{0},{1},{2} \n".format("ACCESS-STARTED", date_str ,time_str))
+                    self.file.write("{0},{1},{2},{3} \n".format("ACCESS-STARTED", date_str ,time_str, self.message))
+
+    
 
                 # Format timestamp
                 
@@ -173,8 +194,8 @@ class MainApp(IoTApp):
                 if self.message != "None":
                     self.file.write(data_line)
                 
-                
                 # Set correct colour for NeoPixel matrix LEDS and correct access warning string
+                
                 if self.lightcount==0:
                     self.npm.fill((0, 0, 0))
                     self.npm.write()
@@ -189,38 +210,27 @@ class MainApp(IoTApp):
                     self.npm.write()
                 # Increment seconds counter
                 self.count += 1
-                self.lightcount +=0.10
-
-                
-     
+                self.lightcount +=1
+            
+            
     
     def mqtt_callback(self, topic, msg):
         
         topic = self.MQTT_TEST_TOPIC_2
             
-            # self.oled_fill(24, 8, 80, 16, self.oled_background)
-
-
+        
         sleep(1)
 
+        # decode the message
         self.message = (str(bytes(msg), "utf-8"))
-            
+        
+        # statment to manage the type of message that it's receive
         if (self.message != "None"):
-            self.oled_clear()
-            self.oled_text("Employee: ",0,0)
-            self.oled_text("on room: ",0,10)
-            self.oled_text(self.message,0,20)
             self.access = True
-            self.oled_display()
-            
         else :
             self.lightcount = 0
-            self.oled_clear()
-            self.oled_text("Employee: ",0,0)
-            self.oled_text("on room: ",0,10)
-            self.oled_text(self.message,0,20)
-            self.oled_display()
-            #self.active = True
+           
+            
 
 
 
@@ -241,9 +251,10 @@ class MainApp(IoTApp):
 
         # If an access period is currently active then write to the access_data.csv file that it
         # is now stopped and also the length of the access period in seconds
-        if self.access:
+        if  self.access:
             # Current date and time taken from the real-time clock to record as stop date and time
             # for this access period
+            
             now = self.rtc.datetime()
             year = now[0]
             month = now[1]
@@ -294,6 +305,7 @@ class MainApp(IoTApp):
             self.file.write("{0},{1},{2}\n".format("ACCESS-STARTED", date_str, time_str))
         
             # Update access information
+            
             self.access = True
             self.access_str = "ACCESS"
             self.count = 0
