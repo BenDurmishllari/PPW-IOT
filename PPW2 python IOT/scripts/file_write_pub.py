@@ -113,7 +113,7 @@ class MainApp(IoTApp):
         self.access = False
         self.access_str = ""
         
-       
+        # counts variables 
         self.count = 0
         self.lightcount=0
 
@@ -162,8 +162,6 @@ class MainApp(IoTApp):
                     # Write to file
                     self.file.write("{0},{1},{2} \n".format("ACCESS-STARTED", date_str ,time_str))
 
-    
-
                 # Format timestamp
                 
                 timestamp = "{0}-{1}-{2}|{3}:{4}:{5}".format(year, month, day, hour, minute, second)
@@ -175,8 +173,8 @@ class MainApp(IoTApp):
                 if self.message != "None":
                     self.file.write(data_line)
                 
-                # Set correct colour for NeoPixel matrix LEDS and correct access warning string
                 
+                # Set correct colour for NeoPixel matrix LEDS and correct access warning string
                 if self.lightcount==0:
                     self.npm.fill((0, 0, 0))
                     self.npm.write()
